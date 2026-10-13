@@ -1,5 +1,5 @@
 
-name: Build VectorCraft for Intel Mac
+name: Build VectorCraft macOS App
 
 on:
   workflow_dispatch:
@@ -25,17 +25,62 @@ jobs:
           targets: x86_64-apple-darwin
 
       - name: Build VectorCraft
-        run: cargo build --release --locked --workspace --target x86_64-apple-darwin
-
-      - name: Show build files
         run: |
-          echo "Build completed. Available executables:"
-          ls -lah target/x86_64-apple-darwin/release/
+          cargo build --release --locked \
+            -p vectorcraft \
+            --target x86_64-apple-darwin
 
-      - name: Upload build output
+      - name: Create VectorCraft.app
+        shell: bash
+        run: |
+          APP="VectorCraft.app"
+
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources"
+
+          cp target/x86_64-apple-darwin/release/vectorcraft \
+            "$APP/Contents/MacOS/VectorCraft"
+
+          chmod +x "$APP/Contents/MacOS/VectorCraft"
+
+          cp assets/app-icon/vectorcraft.icns \
+            "$APP/Contents/Resources/VectorCraft.icns"
+
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>VectorCraft</string>
+            <key>CFBundleDisplayName</key>
+            <string>VectorCraft</string>
+            <key>CFBundleExecutable</key>
+            <string>VectorCraft</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.mdrakibhossainkst.vectorcraft</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleIconFile</key>
+            <string>VectorCraft.icns</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>0.9.0</string>
+          </dict>
+          </plist>
+          PLIST
+
+          plutil -lint "$APP/Contents/Info.plist"
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP" VectorCraft-macOS-Intel.zip
+
+      - name: Upload macOS App
         uses: actions/upload-artifact@v4
         with:
-          name: vectorcraft-macos-intel-build
-          path: target/x86_64-apple-darwin/release/
+          name: VectorCraft-macOS-App
+          path: VectorCraft-macOS-Intel.zip
           if-no-files-found: error
           retention-days: 14
